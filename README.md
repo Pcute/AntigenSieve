@@ -42,7 +42,7 @@ Proteins longer than 1,022 residues are truncated to fit the 1,024-token limit o
 ├── train_single.py    # Stratified cross-validation training
 ├── test.py            # Evaluation, prediction, and interpretability export
 ├── process_data.py    # Sequence/structure preprocessing and feature caching
-├── train_all.py       # Full-data training utility
+├── train_single.py       # training utility
 ├── ablation.py        # Ablation experiments
 └── util_*.py          # Analysis and visualization utilities
 ```

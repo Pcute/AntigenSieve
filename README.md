@@ -2,35 +2,52 @@
 
 **Residue-Level Evidence Mining for Proteome-Scale Protective Antigen Discovery**
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python](https://img.shields.io/badge/Python-3.x-blue.svg)](https://www.python.org/)
-[![Web server](https://img.shields.io/badge/Web%20server-AntigenSieve-2ea44f)](https://ai4biosciences.com/AntigenSieve)
+AntigenSieve is an interpretable sequence–structure learning framework for protective antigen prediction. Unlike conventional whole-protein predictors that apply uniform multimodal fusion and global aggregation, AntigenSieve models predictive evidence at residue resolution while requiring only protein-level labels for training.
 
-AntigenSieve is an interpretable sequence–structure learning framework for protective-antigen prediction. Unlike conventional whole-protein predictors, it mines localized evidence at residue resolution while requiring only protein-level labels for training. The model combines residue-aligned semantic and geometric representations through sparse Gate–MoE routing, then aggregates multiple localized signals with saliency-guided multi-representative attention pooling.
+The framework is built around two complementary forms of residue-level heterogeneity. First, the relative contribution and interaction of semantic and geometric information can vary across residues according to their local structural context. Second, predictive evidence for a protective antigen may be concentrated in a limited number of informative regions rather than distributed uniformly across the entire protein.
 
-The framework is intended for genome-scale reverse-vaccinology workflows: it assigns each protein a protective-antigen probability and provides residue-level evidence that can support candidate ranking, epitope hypothesis generation, and downstream experimental design.
+To address these properties, AntigenSieve combines **Exogenous–Endogenous Synergistic Residue Feature Fusion** with **Adaptive Anchor-Modulated Residual Saliency Learning**. The first module explicitly allocates semantic and geometric contributions through residue-wise gating while implicitly modeling nonlinear cross-modal interactions through sparse expert routing. The second module uses protein-level weak supervision to identify salient residue anchors and recover complementary contextual evidence around them before producing a protein-level protective antigen score.
 
-![Overview of the AntigenSieve architecture and experimental validation workflow](assets/main_fig1.jpg)
+The framework is designed for proteome-scale reverse-vaccinology workflows. For each protein, AntigenSieve outputs a protective antigen probability together with residue-level predictive-evidence signals that can support candidate prioritization, mechanistic interpretation, hypothesis generation, and downstream experimental validation.
 
-*Overview of the AntigenSieve architecture and the downstream experimental validation workflow.*
+*Overview of the AntigenSieve residue-level evidence-mining architecture and downstream experimental validation workflow.*
 
 ## Highlights
 
-- **Residue-aligned multimodal fusion:** integrates SaProt-derived sequence–structure semantics with ESM-2-informed geometric graph features at single-residue resolution.
-- **Sparse Gate–MoE routing:** adaptively selects the most informative experts for each residue.
-- **Multi-representative MIL pooling:** preserves multiple spatially or sequentially separated predictive regions instead of compressing all evidence into one global representation.
-- **Weak supervision:** learns residue-level evidence using only protein-level protective/non-protective labels.
-- **Built-in interpretability:** exports residue contributions, representative-attention profiles, modality gates, and expert-routing statistics.
+- **Residue-level semantic–geometric encoding:** combines SaProt-derived structure-aware semantic representations with ESM-2-informed geometric graph features at single-residue resolution.
+- **Exogenous–Endogenous Synergistic Residue Feature Fusion:** explicitly models residue-wise modality dependence through scalar gating while implicitly capturing residue-conditioned nonlinear semantic–geometric interactions through sparse MoE routing.
+- **Adaptive Anchor-Modulated Residual Saliency Learning:** identifies high-saliency residue anchors under protein-level supervision and uses anchor-conditioned attention to recover complementary local or nonlocal predictive evidence.
+- **Localized evidence aggregation:** allows multiple informative residue regions to jointly contribute to protein-level prediction rather than compressing all residue information through a uniform global readout.
+- **Weak supervision:** learns residue-level predictive-evidence allocation using only protein-level protective/non-protective labels, without residue-level epitope annotations.
+- **Built-in interpretability:** exports residue saliency scores, modality-gate values, expert-routing statistics, selected expert identities, and anchor-specific attention profiles.
 
-In the accompanying manuscript, AntigenSieve achieved a PR-AUC of **0.7134** on the PLGDL benchmark and **0.90** on the independent iBPA benchmark. All retrospectively validated protective antigens from *Brucella*, *Plasmodium*, and mpox virus ranked within the top **7.9%** of their respective proteomes. In a prospective *Mycoplasma pneumoniae* screen, 3 of 16 tested candidates significantly reduced pulmonary bacterial burden in mice.
+In the accompanying manuscript, AntigenSieve achieved a PR-AUC of **0.7134** on the PLGDL benchmark and **0.90** on the independent iBPA benchmark. All retrospectively validated protective antigens from *Brucella*, *Plasmodium*, and mpox virus ranked within the top **7.9%** of their respective proteomes. In a prospective *Mycoplasma pneumoniae* screen, 3 of 16 experimentally tested candidates significantly reduced pulmonary bacterial burden in mice.
 
 ## Model overview
 
-1. Frozen ESM-2 embeddings provide residue-level sequence features for the geometric graph branch.
-2. Foldseek structural-alphabet tokens are encoded by frozen SaProt to provide structure-aware semantic features.
-3. A graph attention network propagates information through residue contacts defined from Cα coordinates.
-4. Residue-aligned Gate–MoE fusion adaptively combines semantic and geometric evidence.
-5. Saliency-guided multi-representative pooling aggregates localized residue evidence into a protein-level prediction.
+AntigenSieve progressively transforms complementary residue representations into localized predictive evidence and ultimately into a protein-level protective antigen probability.
+
+1. **Structure-aware semantic encoding.**  
+   Each amino acid is paired with its Foldseek structural-alphabet token and encoded using frozen SaProt, producing residue-level semantic representations that jointly reflect sequence identity and local structural state.
+
+2. **Geometric residue encoding.**  
+   Frozen ESM-2 residue embeddings are used as graph nodes. Residues are connected according to three-dimensional contacts and backbone adjacency, and geometric information is propagated using GATv2 message passing with distance- and direction-aware edge attributes.
+
+3. **Residue alignment.**  
+   Semantic and geometric representations are aligned at residue resolution to preserve one-to-one correspondence before multimodal integration.
+
+4. **Exogenous–Endogenous Synergistic Residue Feature Fusion.**  
+   Two complementary pathways operate in parallel:
+   - the **exogenous pathway** uses a scalar gate to explicitly allocate the relative contribution of semantic and geometric information for each residue;
+   - the **endogenous pathway** uses sparse MoE routing to learn residue-conditioned nonlinear interaction patterns in the joint semantic–geometric feature space.
+
+   The two representations are combined to produce a fused residue-level representation.
+
+5. **Adaptive Anchor-Modulated Residual Saliency Learning.**  
+   A learnable MIL query first assigns saliency scores to valid fused residues. The highest-saliency residues are adaptively selected as representative anchors. Each anchor then modulates a second attention operation over the valid residues to recover complementary contextual evidence that may not be represented by the anchor alone.
+
+6. **Protein-level prediction.**  
+   Anchor-specific representations are weighted according to their initial saliency and aggregated into a protein-level representation, which is passed to a binary classifier to produce the final protective antigen probability.
 
 Proteins longer than 1,022 residues are truncated to fit the 1,024-token limit of the pretrained encoders, including special tokens.
 
@@ -38,33 +55,39 @@ Proteins longer than 1,022 residues are truncated to fit the 1,024-token limit o
 
 ```text
 .
-├── model.py           # AntigenSieve architecture, losses, metrics, and plots
-├── train_single.py    # Stratified cross-validation training
+├── model.py           # AntigenSieve architecture, losses, metrics, and visualization utilities
+├── train_single.py    # Five-fold stratified cross-validation training
 ├── test.py            # Evaluation, prediction, and interpretability export
 ├── process_data.py    # Sequence/structure preprocessing and feature caching
-├── train_single.py       # training utility
 ├── ablation.py        # Ablation experiments
-└── util_*.py          # Analysis and visualization utilities
+└── util_*.py          # Additional analysis and visualization utilities
 ```
 
 ## Requirements
 
-A CUDA-capable GPU is recommended for feature generation and training. The main software dependencies are:
+A CUDA-capable GPU is recommended for feature generation and model training.
+
+The main software dependencies are:
 
 - Python 3
 - PyTorch
 - PyTorch Geometric
 - Transformers
-- NumPy, pandas, SciPy, and scikit-learn
+- NumPy
+- pandas
+- SciPy
+- scikit-learn
 - Biopython
-- Matplotlib and seaborn
+- Matplotlib
+- seaborn
 - tqdm
 - umap-learn
 - openpyxl
 - Foldseek
-- Local ESM-2 (`esm2_t33_650M_UR50D`) and SaProt (`saport_650m_af2`) model directories
+- Local ESM-2 (`esm2_t33_650M_UR50D`) model directory
+- Local SaProt (`saport_650m_af2`) model directory
 
-`test.py` uses `utils.foldseek_util.get_struc_seq` to generate Foldseek structural tokens. Ensure that this utility is available in the repository and that the Foldseek executable has permission to run.
+`test.py` uses `utils.foldseek_util.get_struc_seq` to generate Foldseek structural-alphabet tokens. Ensure that this utility is available in the repository and that the Foldseek executable has permission to run.
 
 ## Data preparation
 
@@ -81,17 +104,29 @@ processed_data/
     └── ...
 ```
 
-Each manifest entry must contain `id`, `label`, and `file`. Each `.npz` sample must contain `struc_emb`, `graph_x`, `edge_index`, `graph_coords`, and `label`.
+Each entry in `manifest.json` must contain:
 
-The filtering workbook supplied through `--filter_excel_path` must contain two sheets named `pos600` and `neg6000`; protein identifiers are read from the first column of each sheet.
+- `id`
+- `label`
+- `file`
+
+Each `.npz` sample must contain:
+
+- `struc_emb`
+- `graph_x`
+- `edge_index`
+- `graph_coords`
+- `label`
+
+The filtering workbook supplied through `--filter_excel_path` must contain two sheets named `pos600` and `neg6000`. Protein identifiers are read from the first column of each sheet.
 
 ### Test data
 
-For raw-data inference, the test workbook must contain these columns:
+For raw-data inference, the test workbook must contain the following columns:
 
 | Column | Description |
-|---|---|
-| `Protein ID (Uniprot/NCBI)` | Protein identifier used to locate its structure |
+| --- | --- |
+| `Protein ID (Uniprot/NCBI)` | Protein identifier used to locate the corresponding structure |
 | `Sequence` | Amino-acid sequence |
 | `Class` | Ground-truth class, such as `positive`/`negative` or `1`/`0` |
 
@@ -101,7 +136,7 @@ PDB files must be stored in one directory and named as follows:
 AF-<Protein ID (Uniprot/NCBI)>-F1-model_v4.pdb
 ```
 
-On the first run, `test.py` generates and caches the processed features under the result directory. A later run can reuse that cache through `--processed_data_dir`.
+On the first run, `test.py` generates and caches processed sequence–structure features under the result directory. Subsequent runs can reuse the cached features through `--processed_data_dir`.
 
 ## Usage
 
@@ -116,9 +151,23 @@ python train_single.py \
   --save_dir ./checkpoints_single
 ```
 
-By default, the script performs five-fold stratified cross-validation for up to 50 epochs, uses focal loss, and applies early stopping based on validation PR-AUC. Results are written to `checkpoints_single/<RUN_TIMESTAMP>/`; the best fold is also copied to `best_model.pth` in that run directory.
+By default, the script performs five-fold stratified cross-validation for up to 50 epochs, uses focal loss, and applies early stopping based on validation PR-AUC.
 
-### Test and export residue-level interpretations
+Results are written to:
+
+```text
+checkpoints_single/<RUN_TIMESTAMP>/
+```
+
+The best-performing fold checkpoint is also copied to:
+
+```text
+best_model.pth
+```
+
+within the corresponding run directory.
+
+### Test and export residue-level predictive evidence
 
 ```bash
 python test.py \
@@ -131,19 +180,83 @@ python test.py \
   --save_dir ./test_results
 ```
 
-The architecture arguments used for testing—including `--input_size`, `--hidden_size`, `--num_heads`, `--num_experts`, `--top_k`, and `--num_clusters`—must match the values used to train the checkpoint.
+The architecture arguments used for testing must match those used to train the checkpoint, including:
+
+- `--input_size`
+- `--hidden_size`
+- `--num_heads`
+- `--num_experts`
+- `--top_k`
+- `--num_clusters`
+
+In the current implementation, parameters controlling the number of representative regions or clusters should remain consistent with the number of adaptive residue anchors used during training.
 
 ## Outputs
 
-Training creates timestamped logs, per-fold checkpoints, metric summaries, and learning curves. Testing writes the following principal artifacts to `--save_dir`:
+Training produces timestamped logs, per-fold checkpoints, metric summaries, and learning curves.
 
-- `predictions.csv`: protein-level probabilities and predictions.
-- `interpretability_summary.json`: residue-level scores, representative regions, gate values, and expert usage.
-- `residue_contributions.npy`: per-residue positive-class logit contributions.
-- `val_ids.npy`: protein identifiers aligned with the exported arrays.
-- ROC, precision–recall, confusion-matrix, gate-distribution, expert-usage, UMAP, and t-SNE plots.
+Testing writes the principal prediction and interpretability artifacts to `--save_dir`.
 
-Residue contributions identify model-relevant positions; they should be treated as experimentally testable hypotheses rather than validated B-cell or T-cell epitopes.
+### Protein-level predictions
+
+- `predictions.csv`  
+  Protein-level protective antigen probabilities and binary predictions.
+
+### Residue-level predictive evidence
+
+- `interpretability_summary.json`  
+  Residue saliency scores, representative anchors or regions, modality-gate values, expert-routing information, and anchor-specific attention summaries.
+
+- `residue_contributions.npy`  
+  Per-residue contributions to the positive-class prediction.
+
+- `val_ids.npy`  
+  Protein identifiers aligned with the exported residue-level arrays.
+
+### Visualization outputs
+
+The evaluation pipeline can additionally generate:
+
+- ROC curves
+- precision–recall curves
+- confusion matrices
+- residue-saliency profiles
+- gate-distribution plots
+- expert-usage plots
+- anchor-specific attention visualizations
+- UMAP projections
+- t-SNE projections
+
+Residue saliency, gate values, expert-routing weights, anchor-specific attention, and residue-contribution scores should be interpreted as **model-derived predictive-evidence allocation signals**. Because AntigenSieve is trained only with protein-level labels, these quantities should not be interpreted as experimentally validated B-cell or T-cell epitopes without independent validation.
+
+## Interpretation of model outputs
+
+AntigenSieve separates residue-level evidence analysis into several complementary signals:
+
+- **Residue saliency (`a_i`)** reflects the initial allocation of protein-level predictive evidence across valid residues.
+- **Modality gate (`g_i`)** reflects the explicit relative reliance on semantic versus geometric information at each residue.
+- **Expert-routing weights (`π_i,e`)** indicate which nonlinear interaction experts are activated for each residue.
+- **Adaptive anchors** correspond to high-saliency residues selected to initiate contextual evidence refinement.
+- **Anchor-specific attention (`β_k,i`)** describes how each selected anchor retrieves complementary contextual evidence from other valid residues.
+
+These signals provide interpretable hypotheses about how AntigenSieve reaches a protein-level prediction, but they are not directly supervised residue annotations.
+
+## Ablation analysis
+
+The accompanying experiments evaluate the contributions of the major architectural components through eight simplified variants of the full model.
+
+The principal ablations include:
+
+- **No geometry:** replaces edge-aware geometric encoding with topology-only graph convolution.
+- **No exogenous gate:** removes explicit residue-wise scalar modality allocation.
+- **No endogenous MoE:** removes residue-conditioned sparse expert interaction modeling.
+- **Mean pooling:** replaces adaptive saliency-based evidence aggregation with masked mean pooling.
+- **Single anchor:** restricts adaptive anchor-modulated saliency learning to one representative anchor.
+- **Equal-weight fusion:** removes both the exogenous gate and endogenous MoE pathways and uses equal-weight semantic–geometric summation.
+- **Late fusion:** performs semantic and geometric fusion only after protein-level pooling.
+- **Protein-level MoE:** moves expert routing from residue resolution to the protein level.
+
+These experiments separately assess the importance of explicit modality allocation, nonlinear cross-modal interaction modeling, localized evidence aggregation, geometric encoding, and residue-level versus protein-level fusion.
 
 ## Citation
 
@@ -162,7 +275,9 @@ The citation will be updated when the final publication information becomes avai
 
 ## Web server
 
-An interactive AntigenSieve web server is available at [https://ai4biosciences.com/AntigenSieve](https://ai4biosciences.com/AntigenSieve).
+An interactive AntigenSieve web server is available at:
+
+[https://ai4biosciences.com/AntigenSieve](https://ai4biosciences.com/AntigenSieve)
 
 ## License
 

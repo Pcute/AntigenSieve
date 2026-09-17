@@ -10,7 +10,7 @@ AntigenSieve is an interpretable sequence–structure learning framework for pro
 
 The framework is intended for genome-scale reverse-vaccinology workflows: it assigns each protein a protective-antigen probability and provides residue-level evidence that can support candidate ranking, epitope hypothesis generation, and downstream experimental design.
 
-![Overview of the AntigenSieve architecture and experimental validation workflow](assets/main_fig1.jpg)
+![Overview of the AntigenSieve architecture and experimental validation workflow](assets/main.jpg)
 
 *Overview of the AntigenSieve architecture and the downstream experimental validation workflow.*
 
